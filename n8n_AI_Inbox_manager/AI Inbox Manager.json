@@ -1,0 +1,929 @@
+{
+  "name": "AI Inbox Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        1088,
+        880
+      ],
+      "id": "907ce055-014b-4316-ae24-5a6de543a630",
+      "name": "Gmail Trigger1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mgynUeJNc6OMSDzF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const rawOutput = $json.text || $json.output || $json.response || $json.message?.content || Object.values($json)[0] || '';\nconst raw = typeof rawOutput === 'string' ? rawOutput : JSON.stringify(rawOutput);\n\nlet aiOutput;\ntry {\n  const jsonMatches = raw.match(/\\{[^{}]*(?:\\{[^{}]*\\}[^{}]*)*\\}/g);\n  if (jsonMatches) {\n    const lastJson = jsonMatches[jsonMatches.length - 1];\n    aiOutput = JSON.parse(lastJson);\n  }\n} catch (e) {}\n\n// Si le modèle a wrappé dans {\"output\": {...}}, unwrap\nif (aiOutput && aiOutput.output && typeof aiOutput.output === 'object') {\n  aiOutput = aiOutput.output;\n}\n\n// Fallback si parsing échoué\nif (!aiOutput || typeof aiOutput !== 'object') {\n  return {\n    json: {\n      valid: false,\n      error: 'Parsing IA échoué',\n      category: 'autre',\n      summary: 'Résumé non disponible',\n      sentiment: 'neutre',\n      confidence: 0,\n      action_needed: false,\n      is_invoice: false,\n      invoice_amount: null,\n      invoice_currency: null,\n      invoice_due_date: null,\n      suggested_reply: null\n    }\n  };\n}\n\n// Forcer les booléens\nconst toBool = (val) => {\n  if (typeof val === 'boolean') return val;\n  if (typeof val === 'string') return val.toLowerCase() === 'true';\n  return false;\n};\n\n// Noms de champs flexibles (le modèle change les noms parfois)\nconst category = aiOutput.category ?? aiOutput.classification ?? aiOutput.type ?? 'autre';\nconst summary = aiOutput.summary ?? aiOutput.resume ?? aiOutput.résumé ?? 'Résumé non disponible';\nconst sentiment = aiOutput.sentiment ?? aiOutput.tone ?? aiOutput.mood ?? 'neutre';\nconst rawConfidence = aiOutput.confidence ?? aiOutput.confidence_score ?? aiOutput.score ?? 0.5;\nconst confidence = typeof rawConfidence === 'number' ? rawConfidence : parseFloat(rawConfidence) || 0.5;\nconst actionNeeded = aiOutput.action_needed ?? aiOutput.actionNeeded ?? aiOutput.action ?? false;\nconst isInvoice = aiOutput.is_invoice ?? aiOutput.isInvoice ?? aiOutput.invoice ?? false;\nconst invoiceAmount = aiOutput.invoice_amount ?? aiOutput.amount ?? aiOutput.facture?.amount ?? aiOutput.facture?.montant ?? null;\nconst invoiceCurrency = aiOutput.invoice_currency ?? aiOutput.currency ?? aiOutput.devise ?? aiOutput.facture?.currency ?? aiOutput.facture?.devise ?? null;\nconst invoiceDueDate = aiOutput.invoice_due_date ?? aiOutput.due_date ?? aiOutput.dueDate ?? aiOutput.facture?.due_date ?? aiOutput.facture?.date_echeance ?? null;\nconst suggestedReply = aiOutput.suggested_reply ?? aiOutput.draft_response ?? aiOutput.reply ?? aiOutput.draft ?? null;\n\nconst validCategories = ['spam', 'important', 'newsletter', 'facture', 'action_requise', 'notification', 'personnel', 'autre'];\nconst validSentiments = ['urgent', 'positif', 'neutre', 'negatif'];\n\nreturn {\n  json: {\n    valid: true,\n    category: validCategories.includes(category) ? category : 'autre',\n    summary: String(summary).slice(0, 500),\n    sentiment: validSentiments.includes(sentiment) ? sentiment : 'neutre',\n    confidence: Math.max(0, Math.min(1, confidence)),\n    action_needed: toBool(actionNeeded),\n    is_invoice: toBool(isInvoice),\n    invoice_amount: invoiceAmount,\n    invoice_currency: invoiceCurrency,\n    invoice_due_date: invoiceDueDate,\n    suggested_reply: suggestedReply\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        880
+      ],
+      "id": "0c133336-29c2-4b75-bd62-9d3f565c0057",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e5e8788f-b86c-42c9-aa94-b85194d8bc76",
+              "name": "emailID",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.emailID }}",
+              "type": "string"
+            },
+            {
+              "id": "0d600bc3-3974-4a27-a2aa-e20a232421e9",
+              "name": "threadId",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.threadId }}",
+              "type": "string"
+            },
+            {
+              "id": "93b58c3c-3263-4ac2-a05c-fb756851777f",
+              "name": "From",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.From }}",
+              "type": "string"
+            },
+            {
+              "id": "ce8d2109-01af-4c91-aaa2-3716db9547ff",
+              "name": "fromEmail",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.fromEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "de4a43b9-e528-4a88-bc93-2d0a09e4fce0",
+              "name": "fromName",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.fromName }}",
+              "type": "string"
+            },
+            {
+              "id": "02659187-d0f7-410d-bd4e-69a76361cade",
+              "name": "subject",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "c2e985a3-997a-44c8-82a5-d09642a623c7",
+              "name": "date",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "8f13d695-bc6c-46c6-9dec-4cb672498961",
+              "name": "dateFormatted",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.dateFormatted }}",
+              "type": "string"
+            },
+            {
+              "id": "80ed4c22-75db-4773-8659-d1234f14748f",
+              "name": "body",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.body }}",
+              "type": "string"
+            },
+            {
+              "id": "52e07a82-9171-4ebf-8318-d09dda505285",
+              "name": "gmailLink",
+              "value": "={{ $('🔧 Préparer Données Email1').item.json.gmailLink }}",
+              "type": "string"
+            },
+            {
+              "id": "1f064242-e319-41d7-840e-d526bfa9b202",
+              "name": "category",
+              "value": "={{ $json.category }}",
+              "type": "string"
+            },
+            {
+              "id": "430b7dcf-8f71-4e3d-99db-ef4ec9e3d044",
+              "name": "summary",
+              "value": "={{ $json.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "0719dde6-9b72-4993-ac0f-6b28eb2dd921",
+              "name": "sentiment",
+              "value": "={{ $json.sentiment }}",
+              "type": "string"
+            },
+            {
+              "id": "9c4e9376-80dd-4648-bc06-9bc8087e03a9",
+              "name": "confidence",
+              "value": "={{ $json.confidence }}",
+              "type": "string"
+            },
+            {
+              "id": "5948ddb4-adad-438a-89b0-93efe1653494",
+              "name": "action_needed",
+              "value": "={{ $json.action_needed }}",
+              "type": "string"
+            },
+            {
+              "id": "0f933d7e-8614-4faa-bfcf-72d8c347e902",
+              "name": "is_invoice",
+              "value": "={{ $json.is_invoice }}",
+              "type": "string"
+            },
+            {
+              "id": "ef0ea144-0035-49a9-8ca6-db5267a35c23",
+              "name": "invoice_amount",
+              "value": "={{ $json.invoice_amount }}",
+              "type": "string"
+            },
+            {
+              "id": "afa6c208-7ec0-4710-a9f9-1e70cce5b88e",
+              "name": "invoice_currency",
+              "value": "={{ $json.invoice_currency }}",
+              "type": "string"
+            },
+            {
+              "id": "0fffd181-cbe3-4cfd-b67a-9e2185932c79",
+              "name": "invoice due date",
+              "value": "={{ $json.invoice_due_date }}",
+              "type": "string"
+            },
+            {
+              "id": "6a2fc9d7-ec44-4e59-9cec-93bc046c61be",
+              "name": "suggested_reply",
+              "value": "={{ $json.suggested_reply }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2096,
+        880
+      ],
+      "id": "c407abc0-5fc9-44b7-8f83-3c384d75e033",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e5e8788f-b86c-42c9-aa94-b85194d8bc76",
+              "name": "emailID",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "0d600bc3-3974-4a27-a2aa-e20a232421e9",
+              "name": "threadId",
+              "value": "={{ $json.threadId }}",
+              "type": "string"
+            },
+            {
+              "id": "93b58c3c-3263-4ac2-a05c-fb756851777f",
+              "name": "From",
+              "value": "={{ $json.headers.from }}",
+              "type": "string"
+            },
+            {
+              "id": "ce8d2109-01af-4c91-aaa2-3716db9547ff",
+              "name": "fromEmail",
+              "value": "={{ $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "de4a43b9-e528-4a88-bc93-2d0a09e4fce0",
+              "name": "fromName",
+              "value": "={{ $json.from.value[0].name }}",
+              "type": "string"
+            },
+            {
+              "id": "02659187-d0f7-410d-bd4e-69a76361cade",
+              "name": "subject",
+              "value": "={{ $json.subject ?? \"(sans objet)\" }}",
+              "type": "string"
+            },
+            {
+              "id": "c2e985a3-997a-44c8-82a5-d09642a623c7",
+              "name": "date",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "8f13d695-bc6c-46c6-9dec-4cb672498961",
+              "name": "dateFormatted",
+              "value": "={{ DateTime.fromISO($json.date).toFormat('yyyy-MM-dd HH:mm') }}",
+              "type": "string"
+            },
+            {
+              "id": "80ed4c22-75db-4773-8659-d1234f14748f",
+              "name": "body",
+              "value": "={{ ($json.text ?? $json.html?.removeMarkdown() ?? \"\").slice(0, 3000) }}",
+              "type": "string"
+            },
+            {
+              "id": "52e07a82-9171-4ebf-8318-d09dda505285",
+              "name": "gmailLink",
+              "value": "={{ \"https://mail.google.com/mail/u/0/#inbox/\" + $json.threadId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1296,
+        880
+      ],
+      "id": "c56d38c4-711d-4665-87b0-f045178b1eeb",
+      "name": "🔧 Préparer Données Email1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "10zzpX6Z0Bo80jcmve7-pZuqZAx0jrqd2xQi9lJ8fyOo",
+          "mode": "list",
+          "cachedResultName": "claude test mail",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10zzpX6Z0Bo80jcmve7-pZuqZAx0jrqd2xQi9lJ8fyOo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Feuille 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10zzpX6Z0Bo80jcmve7-pZuqZAx0jrqd2xQi9lJ8fyOo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Expéditeur": "={{ $json.fromEmail }}",
+            "Sujet": "={{ $json.subject }}",
+            "Catégorie": "={{ $json.category }}",
+            "Résumé": "={{ $json.summary }}",
+            "Sentiment": "={{ $json.sentiment }}",
+            "Confiance": "={{ $json.confidence }}",
+            "Action": "={{ $json.action_needed }}",
+            "Email": "={{ $json.gmailLink }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Expéditeur",
+              "displayName": "Expéditeur",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sujet",
+              "displayName": "Sujet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Catégorie",
+              "displayName": "Catégorie",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Résumé",
+              "displayName": "Résumé",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sentiment",
+              "displayName": "Sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confiance",
+              "displayName": "Confiance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2304,
+        880
+      ],
+      "id": "7bb0ac6e-472f-46d1-b70f-5d1b98fed5f7",
+      "name": "Append row in sheet1",
+      "retryOnFail": true,
+      "executeOnce": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "mruowbz5vbw7EhEe",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d0e63f4b-e5e4-4634-b579-ef3a98d5c7e9",
+                    "leftValue": "={{ $json.Action }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "action requise"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.Sentiment }}",
+                    "rightValue": "urgent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "2a1fea3e-af48-4fd5-b5a1-7b89417d0361"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Urgent"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "edb7fee0-2e09-42e2-b49f-77a93c23a50f",
+                    "leftValue": "={{ $('Edit Fields').item.json.is_invoice }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Facture"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "776ebc4b-71e4-47f9-b43d-a9087acb149c",
+                    "leftValue": "",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "autres"
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": true
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2512,
+        880
+      ],
+      "id": "e95b263c-361a-41d0-bb28-c6a068c69ec8",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyse l'email suivant et retourne un JSON structuré.\n\nEXPÉDITEUR : {{ $json.fromName }} <{{ $json.fromEmail }}>\nSUJET : {{ $json.subject }}\nDATE : {{ $json.dateFormatted }}\n\nCONTENU :\n{{ $json.body }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Tu es un assistant de tri d'emails intelligent, bilingue français/anglais.  MISSION : Analyser l'email fourni et retourner un JSON structuré avec classification, résumé, sentiment, et données de facturation si applicable.  CATÉGORIES DISPONIBLES (choisis exactement UNE) : - \"spam\" : publicité non sollicitée, phishing, arnaques - \"important\" : emails de personnes connues, communications professionnelles significatives - \"newsletter\" : newsletters, digests, abonnements informatifs - \"facture\" : factures, devis, rappels de paiement, reçus - \"action_requise\" : emails nécessitant une réponse ou une action de ta part - \"notification\" : notifications automatiques (GitHub, services, alertes système) - \"personnel\" : emails personnels, amis, famille - \"autre\" : tout ce qui ne rentre dans aucune catégorie ci-dessus  RÈGLES DE CLASSIFICATION : 1. Un email peut être à la fois \"facture\" ET nécessiter une action. Priorité à \"facture\" pour la catégorie, mais mets action_needed à true. 2. Les emails de relance de facture sont \"facture\" avec sentiment \"urgent\". 3. Un email avec deadline proche (< 48h) est sentiment \"urgent\". 4. Les notifications GitHub/CI-CD sont \"notification\" sauf si elles signalent un bug critique (→ \"important\" + \"urgent\").  RÉSUMÉ : - Maximum 2-3 phrases - Inclure : qui écrit, pourquoi, quelle action attendue - Langue du résumé : même langue que l'email original (FR ou EN)  SENTIMENT : - \"urgent\" : deadline, mots d'urgence, relance, bug critique - \"positif\" : bonnes nouvelles, remerciements, confirmation - \"neutre\" : informatif, standard, notification routine - \"negatif\" : plainte, problème, annulation, refus  FACTURE (si détectée) : - Extraire le montant exact avec devise - Extraire la date d'échéance au format YYYY-MM-DD - Si le montant ou la date ne sont pas clairement indiqués, mettre null  BROUILLON DE RÉPONSE (si action_needed = true) : - Rédiger une réponse professionnelle et concise - Même langue que l'email original - Ton cordial mais professionnel - Si c'est un email en français, commence par \"Bonjour\" - Si c'est un email en anglais, commence par \"Hi\" ou \"Hello\" - Maximum 5-6 lignes  SCORE DE CONFIANCE : - 0.9-1.0 : Très sûr (email clairement dans une catégorie) - 0.7-0.89 : Assez sûr - 0.5-0.69 : Incertain (email ambigu) - < 0.5 : Peu sûr (email très ambigu)  FORMAT DE SORTIE : JSON strict, pas de texte autour.\n\n##RULES\nNOMS DES CHAMPS JSON OBLIGATOIRES (utilise EXACTEMENT ces noms) :\n- \"category\"\n- \"summary\"\n- \"sentiment\"\n- \"confidence\"\n- \"action_needed\"\n- \"is_invoice\"\n- \"invoice_amount\"\n- \"invoice_currency\"\n- \"invoice_due_date\"\n- \"suggested_reply\"\n\nNE PAS utiliser d'autres noms comme \"classification\", \"score_de_confiance\", \"facture\", \"brouillon_reponse\". UNIQUEMENT les 10 noms ci-dessus."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1504,
+        880
+      ],
+      "id": "a823d16b-1603-4363-8c40-2f4a7c76d575",
+      "name": "Basic LLM Chain",
+      "notesInFlow": false,
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "maxTries": 2,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "gpt-oss:20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        1088
+      ],
+      "id": "6e77bd50-d63e-43ca-8ec5-259bdaffbdf2",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "TjM2XP1nRGqers3z",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "=🚨EMAIL URGENT\n📧De :{{ $json[\"Expéditeur\"] }}\n📋 Sujet : {{ $json.Sujet }} \n📅 Date : {{ $json.Date }}  \n📝 Résumé IA : {{ $json[\"Résumé\"] }}  \n🏷️ Catégorie : {{ $json[\"Catégorie\"] }} \n🎯 Confiance : {{ $json.Confiance }}  \n🔗 {{ $json.Email }} Ouvrir dans Gmail",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2864,
+        896
+      ],
+      "id": "4c1234e2-e2bc-435e-a8d0-0a2eeb240cdf",
+      "name": "Send a text message",
+      "webhookId": "785d25d3-b970-400c-8029-71dc350d5029",
+      "retryOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "iXFzCSp6brL57G6X",
+          "name": "Telegram account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re:  {{ $json.Sujet }}",
+        "message": "={{ $('Code in JavaScript1').item.json.suggested_reply }}",
+        "options": {
+          "sendTo": "={{ $json[\"Expéditeur\"] }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2944,
+        688
+      ],
+      "id": "63d5a223-6662-409c-bb1d-e4be3cc7ac82",
+      "name": "Create a draft",
+      "webhookId": "9a0051b7-be97-4dc6-a884-ff17bb846b3f",
+      "retryOnFail": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mgynUeJNc6OMSDzF",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "95c9cdd9-9e95-475f-bb5f-0951e4ec5110",
+              "leftValue": "={{ $('Code in JavaScript1').item.json.suggested_reply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2672,
+        704
+      ],
+      "id": "0bc75178-8481-400f-b919-9a7ba0adcaf7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $json;\n\n// Nettoyage du montant\nlet amount = item.invoice_amount;\nif (amount) {\n  // Supprimer symboles de devise et espaces\n  amount = String(amount).replace(/[€$£\\s]/g, '').replace(',', '.');\n  amount = parseFloat(amount);\n  if (isNaN(amount)) amount = null;\n}\n\n// Validation de la date d'échéance\nlet dueDate = item.invoice_due_date;\nif (dueDate) {\n  // Vérifier format YYYY-MM-DD\n  const dateRegex = /^\\d{4}-\\d{2}-\\d{2}$/;\n  if (!dateRegex.test(dueDate)) {\n    // Essayer de parser des formats alternatifs\n    try {\n      const parsed = new Date(dueDate);\n      if (!isNaN(parsed.getTime())) {\n        dueDate = parsed.toISOString().split('T')[0];\n      } else {\n        dueDate = null;\n      }\n    } catch {\n      dueDate = null;\n    }\n  }\n}\n\nreturn {\n  json: {\n    dateReception: item.dateFormatted,\n    expediteur: item.fromName || item.fromEmail,\n    montant: amount,\n    devise: item.invoice_currency || 'EUR',\n    dateEcheance: dueDate,\n    description: item.summary,\n    statut: 'non_payée',\n    gmailLink: item.gmailLink\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        1136
+      ],
+      "id": "c496b87d-cb0a-41d6-8781-0041a7b38bea",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1qQ1GxEyYzBWC-Sl3baiY6YaOEN0uVUDkRU8bLljIGhg",
+          "mode": "list",
+          "cachedResultName": "claude test finance",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qQ1GxEyYzBWC-Sl3baiY6YaOEN0uVUDkRU8bLljIGhg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Feuille 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qQ1GxEyYzBWC-Sl3baiY6YaOEN0uVUDkRU8bLljIGhg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Devise": "={{ $json.devise }}",
+            "Statut": "={{ $json.statut }}",
+            "Montant": "={{ $('Code in JavaScript1').item.json.invoice_amount }}",
+            "Date": "={{ $('Edit Fields').item.json.dateFormatted }}",
+            "Expéditeur": "={{ $('Edit Fields').item.json.fromName }}",
+            "Description": "={{ $('Edit Fields').item.json.summary }}",
+            "Date échéance": "={{ $('Edit Fields').item.json[\"invoice due date\"] }}",
+            "Email": "={{ $('Edit Fields').item.json.fromEmail }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Expéditeur",
+              "displayName": "Expéditeur",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Montant",
+              "displayName": "Montant",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Devise",
+              "displayName": "Devise",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date échéance",
+              "displayName": "Date échéance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Statut",
+              "displayName": "Statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2912,
+        1136
+      ],
+      "id": "39aac97f-0032-41de-8aba-a36da2e31802",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "mruowbz5vbw7EhEe",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger1": {
+      "main": [
+        [
+          {
+            "node": "🔧 Préparer Données Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Préparer Données Email1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "N0GqsORyRq0LyraY",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "e404f82a-d4aa-41f9-9428-11cb6c72616d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4c20c910c6c5464ff42f4b9e9c8df478d65de4138336f9cb9723dd4880756f8d"
+  },
+  "id": "xGPG0iOuYPa8PbA2",
+  "tags": []
+}
